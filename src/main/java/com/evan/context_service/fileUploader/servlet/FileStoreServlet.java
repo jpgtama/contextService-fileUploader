@@ -4,7 +4,6 @@
 package com.evan.context_service.fileUploader.servlet;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
@@ -18,9 +17,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileItemIterator;
+import org.apache.commons.fileupload.FileItemStream;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.fileupload.util.Streams;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 /**
  * @author evan
@@ -60,7 +64,58 @@ public class FileStoreServlet extends HttpServlet {
 	 */
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-		boolean isMultipart = ServletFileUpload.isMultipartContent(req);
+
+		// usingTraditionalWay(req);
+
+		usingStreamingAPI(req);
+
+	}
+
+	private void usingStreamingAPI(HttpServletRequest request) {
+		// Check that we have a file upload request
+		boolean isMultipart = ServletFileUpload.isMultipartContent(request);
+
+		if (isMultipart) {
+			System.out.println("is Multipart request");
+
+			try {
+				// Create a new file upload handler
+				ServletFileUpload upload = new ServletFileUpload();
+
+				// Parse the request
+				FileItemIterator iter = upload.getItemIterator(request);
+				while (iter.hasNext()) {
+					FileItemStream item = iter.next();
+					String name = item.getFieldName();
+					InputStream stream = item.openStream();
+					if (item.isFormField()) {
+						System.out.println(
+								"Form field " + name + " with value " + Streams.asString(stream) + " detected.");
+					} else {
+						System.out.println("File field " + name + " with file name " + item.getName() + " detected.");
+						// Process the input stream
+						
+						// TODO 
+						// save file
+						byte[] bs = IOUtils.toByteArray(stream);
+						System.out.println("bs length: "+ bs.length);
+						
+						FileUtils.writeByteArrayToFile(new File("C:\\temp\\fileupload\\001.pdf"), bs);
+						System.out.println("File saved.");
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+		} else {
+			System.out.println("not Multipart request");
+		}
+
+	}
+
+	private void usingTraditionalWay(HttpServletRequest request) {
+		boolean isMultipart = ServletFileUpload.isMultipartContent(request);
 
 		if (isMultipart) {
 			System.out.println("True");
@@ -83,7 +138,7 @@ public class FileStoreServlet extends HttpServlet {
 			// 解析请求
 			try {
 				// 把零件送给生产线，出来的就是一辆组装好的汽车（把request转成FileItem的实例）
-				List<FileItem> items = upload.parseRequest(req);
+				List<FileItem> items = upload.parseRequest(request);
 				Iterator<FileItem> iter = items.iterator();
 				while (iter.hasNext()) {
 					FileItem item = iter.next();
@@ -106,7 +161,6 @@ public class FileStoreServlet extends HttpServlet {
 		} else {
 			System.out.println("False");
 		}
-
 	}
 
 }
